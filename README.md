@@ -63,6 +63,12 @@ Or you can get it directly via [golang](https://golang.org/):
         $ $GOPATH/bin/goNetViz
           [...]
 
+pcap-filter
+----------
+
+See: https://www.tcpdump.org/manpages/pcap-filter.7.html
+
+
 Examples
 --------
 
@@ -82,3 +88,7 @@ This is followed by 9 and 12 bits per pixel and finally 24 bits per pixel.
 ![24 Payloadbits per Pixel](img/ping24.png)
 
 
+Run
+---
+
+./goNetViz -interface en0 -scale 20 -filter "port 53"

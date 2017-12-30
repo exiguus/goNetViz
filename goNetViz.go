@@ -131,23 +131,33 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 }
 
-func createImage(filename string, width, height int, content string, scale int, bitsPerPixel int) error {
+func createImage(filename string, width int, height int, content string, scale int, bitsPerPixel int, dateTime string) error {
+
 	if len(content) == 0 {
 		return fmt.Errorf("No content to write")
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
+	var _, err = os.Stat(filename)
+	if os.IsNotExist(err) {
+		var f, err = os.Create(filename)
+		defer f.Close()
+		if err != nil {
+			return fmt.Errorf("Could not create file: %s", err.Error())
+		}
+	}
+
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("Could not open file %s: %s", filename, err.Error())
 	}
 
-	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("<html>\n\t<head>\n\t\t<title>%s</title>\n\t</head>\n\t<body>\n\t\t<svg width=\"%d\" height=\"%d\">\n", filename, width, height)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write header: %s", err.Error())
 	}
 
-	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
-		Version, scale, bitsPerPixel)); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz=%s\n\tScale=%d\n\tBitsPerPixel=%d\n\tDateTime=%s\n-->\n",
+		Version, scale, bitsPerPixel, dateTime)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write additional information: %s", err.Error())
 	}
@@ -157,7 +167,7 @@ func createImage(filename string, width, height int, content string, scale int, 
 		return fmt.Errorf("Could not write content: %s", err.Error())
 	}
 
-	if _, err := f.WriteString("</svg>"); err != nil {
+	if _, err := f.WriteString("\t\t</svg>\n\t</body>\n</html>"); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write closing information: %s", err.Error())
 	}
@@ -198,7 +208,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 		bytePos = 0
 		for {
 			r, g, b := createPixel(content[pkg].payload, &bytePos, &bitPos, uint(bitsPerPixel))
-			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
+			fmt.Fprintf(&svg, "\t\t\t<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
 				break
@@ -219,10 +229,10 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	} else {
 		filename += fmt.Sprint(num)
 	}
-	filename += ".svg"
+	filename += ".html"
 
 	g.Go(func() error {
-		return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+		return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel, firstPkg.Format(time.RFC3339Nano))
 	})
 }
 
