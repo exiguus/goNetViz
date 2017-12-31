@@ -91,4 +91,4 @@ This is followed by 9 and 12 bits per pixel and finally 24 bits per pixel.
 Run
 ---
 
-./goNetViz -interface en0 -scale 20 -filter "port 53"
+        $ ./goNetViz -interface en0 -scale 20 -filter "port 53"
